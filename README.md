@@ -1,6 +1,6 @@
 Workshop Material
 
-Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures\n test
+Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures <br/> test
 ======
 
 Alt-H1
