@@ -1,20 +1,6 @@
 # Workshop Materials
 ### Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures
 
-
-
-Workshop Material <br/> Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures
-======
-
-Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures <br/> test
-======
-
-Alt-H1
-======
-
-# Workshop Material
-### Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures
-
 ## Background & Significance
 Data visualization is critical to conveying new findings in environmental health and is a vital part of advancing the field of environmental epidemiology around the globe. There are a variety of options for creating figures with licensed software, but data visualization packages like ggplot2 in the open-source software, R, are easily accessible and economical alternatives that can produce high quality and journal-ready figures. The syntax of ggplot2 is challenging to learn, so this workshop aims to allow participants to become comfortable with the syntax of ggplot2, create elegant, complex figures, and be able to apply the skills learned to their own research projects. 
 
