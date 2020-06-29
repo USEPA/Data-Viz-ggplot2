@@ -11,4 +11,4 @@ This session will begin with an introduction to the ggplot2 package and supporti
 * Creating maps;
 * Saving and exporting high quality figures for presentations and publications. 
 
-We expect that participants will have some experience in statistical programming. No prior experience with ggplot is necessary, but this workshop is not meant to be an introduction to R. A brief guide to installing R, RStudio, and packages can be found [here](../blob/master/Setup/placeholder) and R version and packages to be installed prior to the workshop [here](../blob/master/Setup/placeholder).
+We expect that participants will have some experience in statistical programming. No prior experience with ggplot is necessary, but this workshop is not meant to be an introduction to R. A brief guide to installing R, RStudio, and packages can be found [here](../master/Setup/placeholder) and R version and packages to be installed prior to the workshop [here](../master/Setup/placeholder).
