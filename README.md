@@ -33,7 +33,7 @@ We expect that participants will have some experience in statistical programming
 | time | Final thoughts |
 
 ## Pre-course preparation
-- Install or update **R program** (R version 3.6.2) and **RStudio** (1.2.5033). Please refer to Setup/Installation_guide_R.docx
+- Install or update **R program** (R version 3.6.2) and **RStudio** (1.2.5033). A brief guide to installing R, RStudio, and packages can be found [here](../master/Setup/Installation_guide_R.docx) and R version and packages to be installed prior to the workshop [here](../master/Setup/Workshop_R_packages.md).
 - Install the required R packages [...]
 - Download the course material
    - [Datasets](../master/Data/[...])
