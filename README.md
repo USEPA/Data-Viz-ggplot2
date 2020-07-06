@@ -24,7 +24,9 @@ We expect that participants will have some experience in statistical programming
 
 ## Pre-course preparation
 - Install or update **R program** (R version 3.6.2) and **RStudio** (1.2.5033). A brief guide to installing R, RStudio, and packages can be found [here](../master/Setup/Installation_guide_R.docx) and R version and packages to be installed prior to the workshop [here](../master/Setup/Workshop_R_packages.md).
-- Install the required R packages [...]
+- Install the necessary R packages:
+   - ggplot2, datasets, mlbench, data.table, dplyr, tidyr, tidyverse, stringr, extrafontdplyr, psych, sf, maps, viridis, RColorBrewer, colorRamps
+   - *install.packages(c("ggplot2", "datasets", "mlbench", "data.table", "dplyr", "tidyr", "tidyverse", "stringr", "extrafontdplyr", "psych", "sf", "maps", "viridis", "RColorBrewer", "colorRamps"))*
 - Download the course material
    - [Datasets](../master/Data/Workshop_data.zip)
    - [R code](../master/R_code/[...])
