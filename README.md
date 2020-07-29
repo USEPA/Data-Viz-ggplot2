@@ -29,4 +29,4 @@ We expect that participants will have some experience in statistical programming
    - *install.packages(c("ggplot2", "datasets", "mlbench", "data.table", "dplyr", "tidyr", "tidyverse", "stringr", "extrafontdplyr", "psych", "sf", "maps", "viridis", "RColorBrewer", "colorRamps", "ggpubr", "scales", "ggthemes", "gridExtra"))*
 - Download the course material
    - [Datasets](../master/Data/Workshop_data.zip)
-   - [R code](../master/R_code/Workshop_data.zip)
+   - [R code](../master/R_code/Rcode_ggplot_workshop.zip)
