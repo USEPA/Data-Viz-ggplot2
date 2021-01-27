@@ -1,0 +1,1788 @@
+---
+title: "Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation Grade Figures"
+author: "Alexandra E. Larsen, Alison K. Krajewski, Lauren H. Wyatt"
+date: "01/28/2021"
+output: 
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Dependencies
+
+These are the libraries and packages we will be using today. If any of them are not loaded already in your RStudio, use [install.packages("library-name")].
+
+```{r, include = T, echo = T}
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(datasets)
+library(RColorBrewer)
+library(colorRamps)
+library(sf)
+library(maps)
+library(dplyr)
+library(data.table)
+library(stringr)
+library(viridis)
+library(psych)
+library(mlbench)
+library(ggpubr)
+library(scales)
+```
+
+# Datasets
+
+```{r}
+# Built-in data sets
+data(iris)
+data(faithful)
+data(cars)
+data(mpg)
+data(Ozone)
+
+# Created by Alison and Lauren
+external_data_dir <- "C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Data\\Data_for_github\\"
+
+air          <- read.csv(paste0(external_data_dir, "Criteria_Air_Pollutants.csv"))
+ht_top5      <-  read.csv(paste0(external_data_dir, "Hypertension_Top5.csv"))
+ht_top5_wide <- read.csv(paste0(external_data_dir, "Hypertension_Top5_Wide.csv"))
+air_long     <- read.csv(paste0(external_data_dir, "CriteriaAirPollutants_Long.csv"))
+Ozone_sub_long <- readRDS(paste0(external_data_dir, "Ozone_ex\\Ozone_ex.rds"))
+```
+
+# Formating Data for GGPlot2
+
+There are many libraries available in R for data manipulation, but we will be focusing on the package [tidyr]. Tidyr uses a pipe operator, just like ggplot2. We've loaded tidyr in the Dependencies section. 
+
+## The Pipe Operator
+
+Let's start with some exercises to get familiar with the pipe operator, [%>%]. For this example, we'll generate some N(0,1) data and take the mean.
+
+```{r}
+set.seed(1234)
+sample_data <- rnorm(n = 1000)
+mean(sample_data)
+```
+
+We can use a pipe operator like so:
+
+```{r}
+sample_data %>%
+  mean()
+```
+
+Here is another example where we create a barplot of some of the iris data.
+
+```{r}
+head(iris)
+barplot(colMeans(iris[iris$Species == "setosa", 1:4]), main = "Barplot without Pipe Operator")
+```
+
+Using the pipe operator instead:
+
+```{r}
+iris %>%
+  filter(Species == "setosa") %>%
+  select(Sepal.Length:Petal.Width) %>%
+  colMeans() %>%
+  barplot(main = "Barplot with Pipe Operator")
+```
+
+In the example using the pipe operator above, notice that we didn't have to create any variables and we can avoid long lines of code. Futher, tidyr has intuitive functions that we can take advantage of as we'll see in the next section.
+
+## Long vs. Wide
+
+One of the most common data transformations that you need with using ggplot2() is converting long to wide and visa versa. 
+
+Tidyr refers to changing from long to wide as "pivoting" and uses pivot_longer() and pivot_wider(). The pivot functions have replaced gather() and spread() as the tidyr function for lengthening or widening data. Other packages are available to do this - you may be familiar with Reshape2, which uses melt() and dcast().
+
+A good resource on gather(), spread(), or the reshape2 options is [here](http://www.cookbook-r.com/Manipulating_data/Converting_data_between_wide_and_long_format/).
+
+We'll start with going from *wide to long data* in the iris data. 
+
+```{r}
+iris_long <- iris %>%  
+  pivot_longer(
+    cols = Sepal.Length:Petal.Width,
+    names_to = "Part",
+    values_to = "Measurement")
+head(iris_long)
+```
+
+```{r}
+# going back to wide... need another data set?
+
+```
+
+# Basics of ggplot2
+
+In this section, we'll spend time with data and aesthetic mapping, and try out a few types of graphs.
+
+Let's start with a basic scatterplot of eruptions from Old Faithful.
+
+```{r}
+head(faithful)
+```
+
+```{r}
+ggplot(data = faithful, 
+       mapping = aes(x = waiting, y = eruptions)) +
+  geom_point()
+```
+
+We can specify data and aesthetics in the layer too
+
+```{r}
+ggplot() +
+  geom_point(data = faithful, 
+             mapping = aes(x = waiting, y = eruptions))
+```
+
+Or a mixture of both
+```{r}
+ggplot(data = faithful) +
+  geom_point(mapping = aes(x = waiting, y = eruptions))
+```
+
+And the data doesn't have to come first.
+```{r}
+ggplot(mapping = aes(x = waiting, y = eruptions)) + 
+  geom_point(data = faithful)
+```
+
+But, you do need both. If you don't specify data within the ggplot, you need $:
+
+```{r eval = F}
+ggplot(mapping = aes(x = waiting, y = eruptions)) + 
+  geom_point()
+```
+
+And if you don't specify mapping, nothing will happen. Remember, mapping is what connects the data to your plot.
+
+```{r, eval = F}
+ggplot(data = faithful) +
+  geom_point()
+```
+
+Without the mapping argument and aes, can't "talk" to the variables in the data.
+
+```{r eval = F}
+ggplot() + 
+  geom_point(data = faithful, x = waiting, y = eruptions)
+```
+
+If you want to change an aesthetic, say color, based on the data, include in mapping
+
+```{r}
+ggplot() + 
+  geom_point(data = faithful, 
+             mapping = aes(x = waiting, y = eruptions, color = eruptions > 3))
+```
+
+Otherwise, place it outside of mapping; it will apply to all the data.
+
+```{r}
+ggplot() + 
+  geom_point(data = faithful, 
+             mapping = aes(x = waiting, y = eruptions),
+             color = "blue")
+```
+
+Let's look at a histogram of the eruptions. 
+
+```{r}
+ggplot() +
+  geom_histogram(data = faithful,
+                 mapping = aes(x = eruptions))
+```
+
+Change with width of each bin from default (30)
+
+```{r}
+ggplot() +
+  geom_histogram(data = faithful,
+                 mapping = aes(x = eruptions),
+                 bins = 50)
+```
+
+Let's make a box plot with the setosa data from iris.
+
+```{r}
+setosa <- iris %>%
+  filter(Species == "setosa") %>%
+  select(-Species)
+head(setosa)
+```
+
+For the boxplot, we'll want the parts of the flower on the x-axis and the measurements on the y-axis, so we need "parts" and "measurements" to be variables or columns in the data set. To get there, we can pivot the data to long format like we did earlier. Let's re-use that code for our setosa subset:
+
+```{r}
+setosa_long <- setosa %>%
+  pivot_longer(
+    cols = Sepal.Length:Petal.Width,
+    names_to = "Part",
+    values_to = "Measurement")
+head(setosa_long)
+```
+
+Now, we can make our boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(data = setosa_long, aes(x = Part, y = Measurement))
+```
+
+\newpage 
+
+# Scales
+
+Everything inside the aes() will have scales
+
+## Modify Scales
+
+Scales are made up of three pieces separated by an underscore (_)
+
+Without specifying scales, the defaults are used. 
+
+```{r}
+#Example of Basic Sccatterplot Without Specifying Scales
+ozone_plot <- ggplot(air, aes(Year, Ozone_ppm)) + geom_point()
+ozone_plot
+```
+
+\newpage
+
+## Labels
+
+This example changes the label name from the variable using scales.
+
+```{r}
+#Adding in Labels 
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + geom_point() +
+  scale_x_continuous(name="Year") + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)")
+ozone_plot
+```
+
+\newpage
+This examples uses the xlab and ylab options.
+
+```{r}
+#Another way to add labels
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + geom_point() +
+  xlab("Year") + ylab("Ozone Concentrations (ppm)")
+ozone_plot 
+```
+
+\newpage
+Labels can also be created for mathematical expressions.
+
+```{r}
+#Example of X-Axis Title with A Mathematicel Expression to the Title
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + geom_point()
+ozone_plot + scale_x_continuous(name="Year") + 
+  scale_y_continuous(quote(Ozone~Concentrations ^ ppm))
+```
+
+\newpage
+
+```{r}
+#Another example with Superscripts and Subscripts
+NO2_plot_script <- ggplot(air, aes(x=Year, y=Nitrogen_Dioxide_ppm)) + geom_point() +
+  xlab("Year") + ylab(expression(Nitrogen~Dioxide~(NO[2])~(ppm)))
+NO2_plot_script
+```
+
+\newpage
+## Breaks 
+
+Break points at specified points can also be created.
+
+Example with ozone.
+```{r}
+#Default 
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + geom_point() +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+   scale_y_continuous(name="Ozone Concentrations (ppm)")
+ozone_plot 
+```
+
+\newpage
+Specifying the breaks by setting limits for the x-axis and break points in the y-axis.
+```{r}
+#Specified breaks
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + 
+  geom_point(aes(colour=Year), size=5) +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)", 
+                     breaks=c(0.06, 0.07, 0.08, 0.09)) 
+ozone_plot
+```
+
+\newpage
+Break points can also be specified through labels.
+```{r}
+#Hypertension Example with Defaults
+ht_top5_plot_labels <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)")
+ht_top5_plot_labels
+```
+
+\newpage
+The addition of breaks with labels.
+```{r}
+#Hypertension Example with Break and Labels
+ht_top5_plot_labels <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)")
+ht_top5_plot_labels
+```
+
+\newpage
+
+## Legends
+
+### Changing the Position of the Legend
+
+The default position is to the right of the figure.
+
+```{r}
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + 
+  geom_point(aes(colour=Year), size=5) +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)") 
+ozone_plot
+```
+
+\newpage
+The designation of the legend to the right of the figure can also be specified.
+
+```{r}
+ozone_plot <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + 
+  geom_point(aes(colour=Year), size=5) +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)") +
+  theme(legend.position='right')
+ozone_plot
+```
+
+\newpage
+Positioning the legend on the bottom.
+
+```{r}
+#Ozone Example
+ozone_plot_legend <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + 
+  geom_point(aes(colour=Year), size=5) +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)") +
+  theme(legend.position="bottom")
+ozone_plot_legend
+```
+
+\newpage
+The legend can also be modified so that all the values of the legend will be in single row.
+
+```{r}
+#Hypertension Example
+ht_top5_plot_legend <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") + 
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_legend
+```
+
+\newpage
+The legend can also be removed.
+
+```{r}
+ozone_plot_nolegend <- ggplot(air, aes(x=Year, y=Ozone_ppm)) + 
+  geom_point(aes(colour=Year), size=5) +
+  scale_x_continuous(name="Year", limits=c(2000,2020)) + 
+  scale_y_continuous(name="Ozone Concentrations (ppm)") +
+  theme(legend.position="none")
+ozone_plot_nolegend
+```
+
+Removing the legend can be helpful if you facet several figures together. 
+More on that later.
+
+\newpage
+# Colors
+
+General considerations:
+* Avoid using red-green and rainbow gradients
+* Keep color schemes color blind friendly 
+* Reference: http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/#a-colorblind-friendly-palette
+
+\newpage
+Hypertension example with default colors
+
+```{r}
+#Hypertension Example - Default
+ht_top5_plot_color_default <- ggplot(ht_top5, aes(x=State, y=Total)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color_default
+
+```
+
+\newpage
+Using the hypertension example to add in a specified color option
+
+```{r}
+#Example using scale_color_brewer
+ht_top5_plot <- ggplot(ht_top5, aes(x=State, y=Total)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_brewer() +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot
+```
+
+\newpage
+In the scale_color_brewer option, there are existing palettes that can be used. 
+```{r}
+#Example using scale_color_brewer and pre-existing palettes
+ht_top5_plot_color <- ggplot(ht_top5, aes(x=State, y=Total)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_brewer(palette = "Greens") +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color
+```
+
+\newpage
+
+```{r}
+#Another example using scale_color_brewer and pre-existing palettes
+ht_top5_plot_color <- ggplot(ht_top5, aes(x=State, y=Total)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_brewer(palette = "Accent") +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color
+```
+
+\newpage
+```{r}
+#The colors can also be reversed
+ht_top5_plot_color_rev <- ggplot(ht_top5, aes(x=State, y=Total)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_brewer(palette = "Accent", direction=-1) +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color_rev
+```
+
+\newpage
+The default colors in the scale_color_brewer are light and do not show up well with the background. 
+This example shows how to change the colors manually.
+
+```{r}
+#Example using scale_color_manual
+#First need to create color palette.
+figure_color <- c("Male" = "black", "Female" = "deeppink2")
+
+ht_top5_plot_color <- ggplot(ht_top5, aes(x=State, y=Total)) + geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_manual(values=figure_color , breaks=c("Male", "Female")) +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color
+```
+
+\newpage
+Colors can also be set with HEX codes.
+```{r}
+#Hypertension Example
+
+#Creating colors
+figure_colors_hex <- c("Male" = "#000000", "Female" = "#ee1287")
+
+#Plotting with HEX color Palette
+ht_top5_plot_color_hex <- ggplot(ht_top5, aes(x=State, y=Total)) + geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State") +
+  scale_y_discrete(name="Total Hypertension Prevelance (%)") +
+  scale_color_manual(values=figure_colors_hex , breaks=c("Male", "Female")) +
+  theme(legend.position="bottom") + guides(colour=guide_legend(nrow=1))
+ht_top5_plot_color_hex
+```
+
+\newpage
+# Exporting High Resoultion Figures
+```{r}
+#Save as a jpeg with dpi specified
+ggsave("D:\\POSTDOC\\CONFERENCES\\ISEE_2020\\R Workshop\\hypertension.jpeg", dpi=360)
+
+#Save as a pdf
+ggsave("D:\\POSTDOC\\CONFERENCES\\ISEE_2020\\R Workshop\\hypertension.pdf", dpi=480)
+
+#Save as a specific size
+ggsave("D:\\POSTDOC\\CONFERENCES\\ISEE_2020\\R Workshop\\hypertension_example.pdf", width=11, height=8, units="in")
+
+```
+
+
+\newpage
+
+# Themes
+
+## What is a theme?
+
+Themes allow for the customization of the non-data parts of figures (ie. titles, labels, fonts, background, gridlines, legends).
+
+## Pre-existing themes
+
+```{r multiplot definition, echo=FALSE}
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+
+
+```{r theme defaults, message=FALSE, warning=FALSE, fig.width=6, fig.height=8}
+base_plot <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = Species)) +
+  geom_point(show.legend = FALSE) +
+  scale_color_brewer(palette = "Dark2")
+
+default_plot_title <- base_plot +
+  labs(title = "Default (theme_grey)")
+
+bw_plot_title <- base_plot +
+  labs(title = "theme_bw") +
+  theme_bw()
+
+linedraw_plot_title <- base_plot +
+  labs(title = "theme_linedraw") +
+  theme_linedraw()
+
+light_plot_title <- base_plot +
+  labs(title = "theme_light") +
+  theme_light()
+
+dark_plot_title <- base_plot +
+  labs(title = "theme_dark") +
+  theme_dark()
+
+minimal_plot_title <- base_plot +
+  labs(title = "theme_minimal") +
+  theme_minimal()
+
+classic_plot_title <- base_plot +
+  labs(title = "theme_classic") +
+  theme_classic()
+
+void_plot_title <- base_plot +
+  labs(title = "theme_void") +
+  theme_void()
+
+multiplot(default_plot_title, bw_plot_title, linedraw_plot_title,
+          light_plot_title, dark_plot_title, minimal_plot_title,
+          classic_plot_title, void_plot_title, layout = matrix(c(1,2,3,4,5,6,7,8), 
+                                                               nrow = 4, byrow = TRUE))
+```
+
+```{r theme improve scatter save, message=FALSE, warning=FALSE, eval=FALSE, echo=FALSE}
+
+# jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Theme_pre_ex1.jpeg", 
+#      units = "in", width = 8, height = 10, res = 400)
+# multiplot(default_plot_title, bw_plot_title, linedraw_plot_title,
+#           light_plot_title, dark_plot_title, minimal_plot_title,
+#           classic_plot_title, void_plot_title, layout = matrix(c(1,2,3,4,5,6,7,8), nrow = 4, byrow = TRUE))
+# dev.off()
+# 
+# jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Theme_pre_ex2.jpeg", 
+#      units = "in", width = 6, height = 8, res = 400)
+# multiplot(default_plot_title, bw_plot_title, linedraw_plot_title,
+#           light_plot_title, dark_plot_title, minimal_plot_title,
+#           classic_plot_title, void_plot_title, layout = matrix(c(1,2,3,4,5,6,7,8), nrow = 4, byrow = TRUE))
+# dev.off()
+
+```
+\newpage
+
+## Scatterplot example
+
+```{r theme improve scatter data create, message=FALSE, warning=FALSE, fig.width=8, fig.height=3, eval=FALSE, echo=FALSE}
+####################################################
+#
+### Data prep occured prior to workshop
+#
+####################################################
+
+### Load Los Angeles Ozone Pollution Data, 1976 (package: mlbench)
+# subsititute temp data to create ozone data for a second city
+Ozone_sub <- Ozone[, c(1,2,3,4,8)]
+colnames(Ozone_sub) <- c("Month", "Day", "DOW", "City A", "City B")
+Ozone_sub$Date <- as.Date(paste(Ozone_sub$Month, Ozone_sub$Day, "1976", sep = "-"), format = "%m-%d-%Y")
+Ozone_sub$`City B` <- Ozone_sub$`City B` / 2
+head(Ozone_sub)
+
+Ozone_sub_long <- gather(Ozone_sub, Env_var, measurement, `City A`:`City B`)
+head(Ozone_sub_long)
+
+saveRDS(Ozone_sub_long, "C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Data\\Data_for_github\\Ozone_ex\\Ozone_ex.rds")
+```
+
+Original default plot
+
+```{r theme improve scatter data load, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+### Load altered Los Angeles Ozone Pollution Data, 1976 (package: mlbench)
+# ozone data for a second city was created by subsitituting temp data 
+
+base_plot <- ggplot(Ozone_sub_long, aes(x = Date, y = measurement, color = Env_var)) +
+  geom_point() +
+  scale_color_brewer(palette = "Dark2") +
+  facet_grid(. ~ Env_var) +
+  labs(x = "",
+       y = "Daily maximum \n1-hr average ozone")
+base_plot
+```
+\newpage
+
+Originial plot with only theme_bw
+
+```{r theme improve scatter 1, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+bw_plot <- base_plot +
+  theme_bw()
+bw_plot
+```
+
+Adjustment to reduce gridlines
+
+```{r theme improve scatter 2, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+bw_plot_adj1 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank()
+  )
+bw_plot_adj1
+```
+\newpage
+
+Adjustment to increase global text size
+
+```{r theme improve scatter 3, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+text_size <- 15
+
+bw_plot_adj2 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size)
+)
+bw_plot_adj2
+```
+
+Adjustment to increase facet label text size
+
+```{r theme improve scatter 4, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+bw_plot_adj3 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size),
+    strip.text.x = element_text(size = 20)
+)
+bw_plot_adj3
+```
+\newpage
+
+Adjustment to rotate x-axis labels
+
+```{r theme improve scatter 5, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+bw_plot_adj4 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size),
+    strip.text.x = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+)
+bw_plot_adj4
+```
+
+Adjustment to change spacing between facet panels
+
+```{r theme improve scatter 6, message=FALSE, warning=FALSE, fig.width=8, fig.height=3}
+bw_plot_adj5 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size),
+    strip.text.x = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(2, "lines")
+)
+bw_plot_adj5
+```
+\newpage
+
+Adjustment to change legend (position, text size)
+
+```{r theme improve scatter 7, message=FALSE, warning=FALSE, fig.width=8, fig.height=4}
+bw_plot_adj6 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size),
+    strip.text.x = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(2, "lines"),
+    legend.position = "bottom"
+)
+bw_plot_adj6
+```
+
+
+```{r theme improve scatter 8, message=FALSE, warning=FALSE, fig.width=8, fig.height=3, eval=FALSE, echo=FALSE}
+# Adjustment to change font (extrafont library)
+font_import()
+loadfonts(device = "win") # long process
+
+bw_plot_adj7 <- base_plot +
+  theme_bw() +
+  theme(
+    panel.grid.minor = element_blank(),
+    text = element_text(size = text_size, family = "Trebuchet MS"),
+    strip.text.x = element_text(size = 20),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.spacing = unit(2, "lines"),
+    legend.position = "bottom"
+)
+bw_plot_adj7
+```
+\newpage
+
+
+
+# Facets
+
+Facets generate small groupings with a different subset of the data.
+
+## Facet Wrap
+Using the hypertension exmaple, two individual plots by sex are created.
+
+Males:
+```{r}
+#Males
+ht_male <- ggplot(ht_top5_wide, aes(x=State, y=Total_Male)) + geom_point(size=5, color="navy") +
+  scale_x_discrete(name="State") + 
+  scale_y_discrete(name="Total Hypertension Prevalence for Males (%)") +
+  theme_bw()
+ht_male
+```
+
+\newpage
+Females:
+```{r}
+#Females
+ht_female <- ggplot(ht_top5_wide, aes(x=State, y=Total_Female)) + geom_point(size=5, color="deeppink") +
+  scale_x_discrete(name="State") + 
+  scale_y_discrete(name="Total Hypertension Prevalence for Females (%)") +
+  theme_bw()
+ht_female
+```
+
+\newpage
+Using facet wrap to combine the two together.
+```{r}
+#Using Facet Wrap
+ht_top5_face_wrap <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) + 
+  scale_y_discrete(name="Total Hypertension Prevalence (%)") +
+  scale_color_manual(values=figure_color , breaks=c("Female", "Male")) +
+  theme_bw() + 
+  theme(legend.position='none') + guides(colour = guide_legend(nrow = 1)) +
+  facet_wrap(~Sex, scales = "free") +
+  theme(strip.text = element_text(face="bold", size=12))
+ht_top5_face_wrap
+```
+
+\newpage
+```{r}
+#This produces the same graph as above, but slightly different coding for facet_wrap
+ht_top5_face_wrap_2 <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) + 
+  scale_y_discrete(name="Total Hypertension Prevalence (%)") +
+  scale_color_manual(values=figure_color , breaks=c("Female", "Male")) +
+  theme_bw() + 
+  theme(legend.position='none') + guides(colour = guide_legend(nrow = 1)) +
+  facet_wrap(~Sex, nrow = 1, dir="h") +
+  theme(strip.text = element_text(face="bold", size=12))
+ht_top5_face_wrap_2
+```
+
+\newpage
+## Facet Grid
+Creating a vertical grid
+```{r}
+#Vertical Orientation for the facet
+ht_top5_plot_vertical <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) + 
+  scale_y_discrete(name="Total Hypertension Prevalence (%)") +
+  scale_color_manual(values=figure_color , breaks=c("Female", "Male")) +
+  theme_bw() + 
+  theme(legend.position='none') + guides(colour = guide_legend(nrow = 1)) +
+  facet_grid(~Sex, scales = "free") +
+  theme(strip.text = element_text(face="bold", size=12))
+ht_top5_plot_vertical
+```
+
+\newpage
+Creating a horizontal grid
+```{r}
+#Horizontal orientation for the facet
+ht_top5_plot_horizontal <- ggplot(ht_top5, aes(x=State, y=Total, group=Sex, colour=Sex)) + 
+  geom_point(aes(colour=Sex), size=5) +
+  scale_x_discrete(name="State", labels=c("Alabama" = "AL", "District Of Columbia" = "DC", 
+                                          "Mississippi" = "MS", "South Carolina" = "SC", 
+                                          "West Virginia" = "WV")) + 
+  scale_y_discrete(name="Total Hypertension Prevalence (%)") +
+  scale_color_manual(values=figure_color , breaks=c("Female", "Male")) +
+  theme_bw() + 
+  theme(legend.position='none') + guides(colour = guide_legend(nrow = 1)) +
+  facet_grid(Sex~., scales = "free") +
+  theme(strip.text = element_text(face="bold", size=12))
+ht_top5_plot_horizontal
+```
+
+\newpage
+Creating a facet with multiple air pollutants
+```{r}
+#Note: Only faceting the plots with the same scale (units)
+
+#Creating labels for x-axis
+air_long$Year <- factor(air_long$Year, levels=c("2000", "2001", "2002", 
+                        "2003", "2004", "2005", "2006", "2007", "2008", 
+                        "2009", "2010", "2011", "2012", "2013", "2014", 
+                        "2015", "2016", "2017", "2018", "2019"))
+#Creating labels for y-axis
+air_long$Pollutant <- factor(air_long$Pollutant, labels=c("Ozone", "Lead", 
+                              "NO[2]", "PM[10]", "PM[2.5]", "SO[2]"))
+#Creating the plot
+cap_plot <- ggplot(air_long, aes(x=Year, y=Concentrations, group=Pollutant, color=Pollutant)) + 
+  geom_point(size=3) + 
+  geom_errorbar(aes(ymin=Lower_10th_Percentile, ymax=Upper_90th_Percentile), width=0.5, size=1) + 
+  scale_x_discrete(name="Year", labels=c("2000", "2001", "2002", "2003", "2004", "2005", 
+                   "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", 
+                   "2015", "2016", "2017", "2018", "2019"), position="bottom", 
+                   limits=levels(air_long$Year)) + 
+  scale_y_continuous(name="Concentrations (ppm)") +
+  theme_bw() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(face="bold", size=12)) +
+  theme(axis.text.x = element_text(angle = 90, size=12)) + 
+  theme(axis.text.y = element_text(size=12)) +
+  facet_grid(Pollutant~., scales = "free", labeller = label_parsed) +
+  theme(strip.text.y = element_text(face="bold", size=12, angle=0)) 
+cap_plot
+```
+
+\newpage
+Switching the pollutant labels with the y-axis.
+```{r}
+#Similiar code to the previous examples, just switching the pollutant labels to be on the right
+cap_plot_2 <- ggplot(air_long, aes(x=Year, y=Concentrations, group=Pollutant, color=Pollutant)) + 
+  geom_point(size=3) + 
+  geom_errorbar(aes(ymin=Lower_10th_Percentile, ymax=Upper_90th_Percentile), width=0.5, size=1) + 
+  scale_x_discrete(name="Year", labels=c("2000", "2001", "2002", "2003", "2004", "2005", 
+                    "2006", "2007", "2008", "2009", "2010", "2011", "2012", "2013", "2014", 
+                    "2015", "2016", "2017", "2018", "2019"), position="bottom", 
+                   limits=levels(air_long$Year)) + 
+  scale_y_continuous(name="Concentrations (ppm)", position='right') +
+  theme_bw() +
+  theme(legend.position = "none") +
+  theme(axis.title = element_text(face="bold", size=12)) +
+  theme(axis.text.x = element_text(angle = 90, size=12)) + 
+  theme(axis.text.y = element_text(size=12)) +
+  facet_grid(Pollutant~., scales = "free", labeller = label_parsed, switch="both") +
+  theme(strip.text.y = element_text(face="bold", size=12, angle=180))
+cap_plot_2
+
+```
+
+\newpage
+
+# Mapping
+ 
+## Map example 1 - Fires
+
+```{r map fire data aggregate, message=FALSE, warning=FALSE, echo=FALSE, eval=FALSE, echo=FALSE}
+
+####################################################
+#
+### Data prep occured prior to workshop
+#
+####################################################
+
+### Create summary dataset for choropleth map example (US counties, contiguous US)
+### Data will be filtered to the years 2008 and 2009 and aggregated to the number of fires reported per county
+#      Source: U.S. Department of Agriculture, https://www.fs.usda.gov/rds/archive/Catalog/RDS-2013-0009
+#      Source title: Spatial wildfire occurrence data for the United States, 1992-2011
+#      Notes: The uploaded file (FPA_FOD_20130422.csv) contains the first 65534 rows from the wildfire database
+
+# fire_dir <- "...\\Fire_ex\\"
+fires <- fread(paste0(external_data_dir, "Fire_ex\\FPA_FOD_20130422.csv"))
+fires <- fires[,c("FPA_ID", "FIRE_YEAR", "STATE", "FIPS_CODE", "DISCOVERY_DATE", "CONTAIN_DATE", "STAT_CAUSE_DESCR")]
+
+# crosswalk between state character and numeric codes
+st_FIPS_xwalk <- fread(paste0(external_data_dir, "Fire_ex\\State_FIPS_crosswalk.csv"))
+st_FIPS_xwalk$State <- as.factor(str_pad(st_FIPS_xwalk$FIPS, 2, pad = "0"))
+st_FIPS_xwalk <- st_FIPS_xwalk[,c("Postal Code", "State")]
+colnames(st_FIPS_xwalk) <- c("STATE", "State")
+
+fires <- st_FIPS_xwalk[fires, on = "STATE"]
+fires$FIPS <- paste0(fires$State, str_pad(fires$FIPS_CODE, 3, pad = "0"))
+fires <- fires[,c("FPA_ID", "FIRE_YEAR", "FIPS", "DISCOVERY_DATE", "CONTAIN_DATE", "STAT_CAUSE_DESCR")]
+
+fire_county_2008_2009 <- fires[fires$FIRE_YEAR %in% c(2008,2009)] %>%
+  group_by(FIPS, FIRE_YEAR) %>%
+  summarise(fire_sum_total = n(),
+            fire_sum_misc = sum(STAT_CAUSE_DESCR == "Miscellaneous"),
+            fire_sum_lightning = sum(STAT_CAUSE_DESCR == "Lightning"),
+            fire_sum_debris = sum(STAT_CAUSE_DESCR == "Debris Burning"),
+            fire_sum_camp = sum(STAT_CAUSE_DESCR == "Campfire"),
+            fire_sum_equip = sum(STAT_CAUSE_DESCR == "Equipment Use"),
+            fire_sum_arson = sum(STAT_CAUSE_DESCR == "Arson"),
+            fire_sum_child = sum(STAT_CAUSE_DESCR == "Children"),
+            fire_sum_railroad = sum(STAT_CAUSE_DESCR == "Railroad"),
+            fire_sum_smoking = sum(STAT_CAUSE_DESCR == "Smoking")) %>%
+  data.table()
+
+saveRDS(fire_county_2008_2009, "C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Data\\RDS-2013-0009\\Data\\Fire_ex.rds")
+```
+
+
+```{r map improve map data load, message=FALSE, warning=FALSE, echo=FALSE, results="hide"}
+###
+#### Data prep
+###
+
+### State and county shapefiles (US)
+census_shapfile_dir <- paste0(external_data_dir, "Shapefiles\\Census_2010\\")
+USstates <- st_read(paste0(census_shapfile_dir, "States2010_outline\\gz_2010_us_040_00_5m\\gz_2010_us_040_00_5m.shp"))
+UScounties <- st_read(paste0(census_shapfile_dir, "Counties2010_outline\\gz_2010_us_050_00_5m\\gz_2010_us_050_00_5m.shp"))
+UScounties$FIPS <- paste0(UScounties$STATE, UScounties$COUNTY)
+yr_list <- data.frame(  FIRE_YEAR = c(2008, 2009) )
+UScounties <- merge(UScounties, yr_list) 
+
+### Fire data, aggregated to counts per county in 2008 and 2009
+fire_county_2008_2009 <- readRDS(paste0(external_data_dir, "Fire_ex.rds"))
+fire_county_2008_2009 <- fire_county_2008_2009[,c("FIPS", "FIRE_YEAR", "fire_sum_total")]
+
+### Join aggregated fire data to county shapefile
+UScounties <- UScounties %>%
+  left_join(fire_county_2008_2009, by = c("FIPS", "FIRE_YEAR"))
+UScounties[is.na(UScounties)] <- 0
+
+### Create breaks of fireS per county
+break_list <- c(0,1,5,10,20,30,40,50,60, 800)
+UScounties$fire_sum_total_cat <- cut(as.numeric(UScounties$fire_sum_total), 
+                                     breaks = break_list, labels = c("0", "1-4", "5-9", "10-19", "20-29", "30-39",
+                                                                     "40-49", "50-59", "60+"), right = F)
+# table(UScounties$fire_sum_total_cat)
+
+### Subset to continuous US (exclude HI, AK, PR)
+exclude_HI_AK_PR <- c("02","15","72")
+USstates <- USstates %>% filter( !(STATE %in% exclude_HI_AK_PR) )
+UScounties <- UScounties %>% filter( !(STATE %in% exclude_HI_AK_PR))
+```
+
+Default map for 2008
+
+```{r map improve map 1, message=FALSE, warning=FALSE}
+map_1 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf() +
+  geom_sf(data = USstates, fill = NA) +
+  labs(fill = "# of fires")
+map_1
+```
+\newpage
+
+Adjust focus to map, minimizing background, adding conic projection
+
+```{r map improve map 2, message=FALSE, warning=FALSE}
+map_2 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf() +
+  geom_sf(data = USstates, fill = NA) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_2
+```
+\newpage
+
+Specify color palette
+
+```{r map improve map 3, message=FALSE, warning=FALSE}
+map_3 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf() +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_3
+```
+\newpage
+
+Adjust legend so higher values are on top
+
+```{r map improve map 4, message=FALSE, warning=FALSE}
+map_4 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf() +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_4
+```
+\newpage
+
+Change county line color so state shapes are apparent
+
+```{r map improve map 5, message=FALSE, warning=FALSE}
+map_5 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9") +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_5
+```
+\newpage
+
+Reduce size of county lines
+
+```{r map improve map 6, message=FALSE, warning=FALSE}
+cty_line <- 0.1
+
+map_6 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_6
+```
+\newpage
+
+Facet by year, legend applies to all maps
+
+```{r map improve map 7, message=FALSE, warning=FALSE}
+map_7 <- ggplot(UScounties, aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  facet_grid(FIRE_YEAR ~ ., switch = "y") +
+  theme_void() +
+  labs(fill = "# of fires")
+map_7
+```
+\newpage
+
+Adjustments to facet label orientation and text size
+
+```{r map improve map 8, message=FALSE, warning=FALSE}
+text_size <- 15
+
+map_8 <- ggplot(UScounties, aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  facet_grid(FIRE_YEAR ~ ., switch = "y") +
+  theme_void() +
+  theme(
+    text = element_text(size = text_size),
+    strip.text.y.left = element_text(angle = 0) 
+        ) +
+  labs(fill = "# of fires")
+map_8
+```
+\newpage
+
+## Map example 2 - Socioeconomic status (SES)
+
+```{r map SES example, message=FALSE, warning=FALSE, echo=FALSE, results="hide"}
+###
+#### Data prep
+###
+
+SES_df <- readRDS(paste0(external_data_dir, "SES_ex.rds"))
+
+# Factor analysis
+SES_mo_var <- SES_df[,-c("FIPS")]
+# parallel <- fa.parallel(SES_mo_var, fm = 'minres', fa = 'fa') 
+fit <- factanal(SES_mo_var, 2, rotation = "varimax", scores = "regression")
+Pov_factor <- data.table(Pov_factor = fit$scores[,1])
+FIPS_SES <- cbind(SES_df[,c("FIPS")], Pov_factor)
+
+# Quantile groups of SES factor
+FIPS_SES$Pov_factor_5 <- cut(FIPS_SES$Pov_factor, breaks = quantile(FIPS_SES$Pov_factor, probs = seq(0, 1, length.out = 6)),
+                             labels = c(as.character(seq(1:5))))
+FIPS_SES$Pov_factor_10 <- cut(FIPS_SES$Pov_factor, breaks = quantile(FIPS_SES$Pov_factor, probs = seq(0, 1, length.out = 11)),
+                             labels = c(as.character(seq(1:10))))
+# table(FIPS_SES$Pov_factor_5)
+# table(FIPS_SES$Pov_factor_10)
+
+### State and county shapefiles (US)
+census_shapfile_dir <- paste0(external_data_dir, "Shapefiles\\Census_2010\\")
+USstates <- st_read(paste0(census_shapfile_dir, "States2010_outline\\gz_2010_us_040_00_5m\\gz_2010_us_040_00_5m.shp"))
+UScounties <- st_read(paste0(census_shapfile_dir, "Counties2010_outline\\gz_2010_us_050_00_5m\\gz_2010_us_050_00_5m.shp"))
+UScounties$FIPS <- paste0(UScounties$STATE, UScounties$COUNTY)
+
+### Join aggregated SES data to county shapefile
+UScounties <- UScounties %>%
+  left_join(FIPS_SES, by = c("FIPS"))
+
+### Subset to continuous US (exclude HI, AK, PR)
+exclude_HI_AK_PR <- c("02","15","72")
+USstates <- USstates %>% filter( !(STATE %in% exclude_HI_AK_PR) )
+UScounties <- UScounties %>% filter( !(STATE %in% exclude_HI_AK_PR))
+```
+
+Default map for 5 SES groups
+
+```{r map SES 5 group ex 1, message=FALSE, warning=FALSE}
+cty_line <- 0.2
+
+map_1 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+map_1
+```
+\newpage
+
+Color palette - one continuous color palate
+
+```{r map SES 5 group ex 2, message=FALSE, warning=FALSE}
+map_2 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(size = cty_line) +
+  geom_sf(data = USstates, size = 0.5, fill = NA) +
+  scale_fill_brewer(palette = "Greens", na.value = "#e8e6e4") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+map_2
+```
+\newpage
+
+Color palette - discrete categories
+
+```{r map SES 5 group ex 3, message=FALSE, warning=FALSE}
+map_3 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(size = cty_line) +
+  geom_sf(data = USstates, size = 0.5, fill = NA) +
+  scale_fill_brewer(palette = "Dark2", na.value = "#e8e6e4") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+map_3
+```
+\newpage
+
+Color palette - discrete categories
+
+```{r map SES 5 group ex 4, message=FALSE, warning=FALSE}
+colors_5 <- c("#EE7600", "#82d6b4", "#3da078", "#057f4e", "#483D8B")
+
+map_4 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(color = "grey62", size = cty_line) +
+  geom_sf(data = USstates, size = 0.5, fill = NA) +
+  scale_fill_manual(values = colors_5, na.value = "#e8e6e4") +
+  # scale_fill_manual(values = colors_5, na.value = "grey90") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+map_4
+```
+\newpage
+
+Default map for 10 SES groups
+
+```{r map SES 10 group ex 1, message=FALSE, warning=FALSE}
+map_10_1 <- ggplot(UScounties, aes(fill = Pov_factor_10)) +
+  geom_sf(size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "Greens", na.value = "#e8e6e4") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 10 groups")
+map_10_1
+```
+\newpage
+
+Create levels for map w/ 10 SES groups
+```{r map SES 10 group ex 2, message=FALSE, warning=FALSE}
+colourCount <- 10
+colors_use <- colorRampPalette(brewer.pal(9, "Greens"))(colourCount)
+
+map_10_2 <- ggplot(UScounties, aes(fill = Pov_factor_10)) +
+  geom_sf(size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_manual(values = colors_use, na.value = "#e8e6e4") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 10 groups")
+map_10_2
+```
+
+
+\newpage
+
+# Examples from the Literature
+The following are examples of figures from the literature that we have re-created.
+
+## Example 1: Point Estimates with Error Bars
+
+Reference for example: Liu JC , Wilson A, Mickley LJ, Dominici F, Ebisu K, Wang Y, Sulprizio MP, Peng RD, Yue X, Son JY, Anderson GB, Bell ML. Wildfire-specific Fine Particulate Matter and Risk of Hospital Admissions in Urban and Rural Counties. Epidemiology. 2017 Jan;28(1):77-85. doi: 10.1097/EDE.0000000000000556.
+
+Note: The actual data used in Liu et al. was not publicly available. The data in this example was created based on the figure in Liu et al. 
+
+Modifications: 
+* Removed grey background
+* Increased font size 
+* Increased size of point estimates
+* Increased width of lines for error bars
+* Created a facet
+
+```{r}
+liu_combined <- read.csv(paste0(external_data_dir, "Liu et al - Admissions.csv"))
+
+liu_facet <- ggplot(liu_combined, aes(x=SmokeWaveIntensity, y=Admission, group=Type)) +
+    geom_errorbar(aes(ymin=Lower, ymax=Upper), width=0.5, size=1.5) +
+  geom_point(size=5, shape=21, fill="white") +
+  xlab(expression("Smoke"~"Wave"~"Intensity"~"("*mu*g/m^3*")")) +
+  ylab("Increase in Hospital Admissions (%)") + 
+  theme_bw() + 
+  theme(axis.text.x=element_text(size=12),
+        axis.text.y=element_text(size=12),
+        axis.title=element_text(face="bold", size=14)) +
+  theme(legend.position = "none") +
+  geom_hline(yintercept=0, color="black", linetype="dashed", size=1) +
+  facet_wrap(.~Type) +
+  theme(strip.text.x = element_text(face="bold", size=12))
+liu_facet
+```
+
+\newpage
+## Example 2: Trend line with confidence band
+
+Referecne for example: Sanders NJ, Barreca AI, Neidell MJ. Estimating Causal Effects of Particulate Matter Regulation on Mortality. Epidemiology. 2020 Mar;31(2):160-167. doi: 10.1097/EDE.0000000000001153.
+
+
+### Example with geom_ribbon
+Modifications:
+* Increased axis label font size
+* Added a confidence band 
+* Changed color for confidence band
+* Changed the color of the reference line
+
+```{r}
+sanders <- read.csv(paste0(external_data_dir, "Sanders et al - Differences.csv"))
+
+#Example with geom_ribbon
+sanders_plot <- ggplot(sanders, aes(x=Year, y=Difference)) + geom_point(size=1) +
+  geom_line(size=2) + 
+  geom_ribbon(aes(ymin=Lower, ymax=Upper), alpha=0.5, linetype="dashed", size=1.5) +
+  labs(x="Year", y="Difference between Treatment \nand Control Counties") + 
+  geom_vline(xintercept=2005, color="black", linetype="dashed", size=1) +
+  theme_bw() + geom_hline(yintercept=0, color="black", linetype="dashed", size=1) +
+  theme(axis.title=element_text(face="bold", size=14))
+sanders_plot
+```
+
+\newpage
+### Example with geom_line
+Modifications
+* Increased axis label font size
+* Increased the size of the trend line and confidence bands
+* Changed the color of confidence bands
+* Change the color of reference line
+
+```{r}
+#Examples with multiple geom_line
+sanders_plot_2 <- ggplot(sanders, aes(x=Year, y=Difference)) + geom_point(size=0.1) +
+  geom_line(color="navy", size=1.5) +
+  geom_line(aes(x=Year, y=Lower), color="dodgerblue", size=2, linetype="dashed") +
+  geom_line(aes(x=Year, y=Upper), color="dodgerblue", size=2, linetype="dashed") +
+  labs(x="Year", y="Difference between Treatment \nand Control Counties") + 
+  geom_vline(xintercept=2005, color="black", linetype="dashed", size=1) +
+  theme_bw() + 
+  theme(axis.title=element_text(face="bold", size=14)) +
+  geom_hline(yintercept=0, color="black", linetype="dashed", size=1) +
+  theme(legend.position = "none")
+sanders_plot_2
+```
+
+\newpage
+## Example 3: Facets with Legend Placement
+
+Reference for example: Pun VC, Kazemiparkouhi F, Manjourides J, Suh HH. Long-Term PM2.5 Exposure and Respiratory, Cancer, and Cardiovascular Mortality in Older US Adults. Am J Epidemiol. 2017 Oct 15;186(8):961-969. doi: 10.1093/aje/kwx166.
+
+Modifications:
+* Moved the legend position 
+* Increased size of the shapes of the estimates
+* Increased the axis labels
+
+```{r}
+### Load and organize data
+ex3_data <- fread(paste0(external_data_dir, "Pun et al - Long Format.csv"))
+
+# create dfs for each panel, order x-axis labels
+a_df <- ex3_data[ex3_data$DiseaseGroup == "A"]
+a_df$Cause_of_Death <- factor(a_df$Cause_of_Death, c("All Cause", "Non Accidental", "Accidental"))
+
+b_df <- ex3_data[ex3_data$DiseaseGroup == "B"]
+b_df$Cause_of_Death <- factor(b_df$Cause_of_Death, c("CVD", "IHD", "CBVD", "CHF"))
+
+c_df <- ex3_data[ex3_data$DiseaseGroup == "C"]
+c_df$Cause_of_Death <- factor(c_df$Cause_of_Death, c("All Respiratory", "COPD", "Pneumonia"))
+
+d_df <- ex3_data[ex3_data$DiseaseGroup == "D"]
+d_df$Cause_of_Death <- factor(d_df$Cause_of_Death, c("All Cancer", "Lung Cancer"))
+
+```
+
+Start with panel A. Use group argument and *position_dodge()* to separate moving average estimates on x-axis. 
+```{r}
+dodge_amount <- 0.7
+
+panel_a <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, group = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount)) +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+panel_a
+
+```
+
+Use shape argument to identify moving average estimates. 
+```{r}
+panel_a <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount)) +
+  labs(x = "Disease Group",
+       y = "Risk Ratio",
+       shape = "Moving Average")
+panel_a
+
+```
+
+Create objects for panels A-D with no legend. Use multiplot to create paneled figure.
+```{r}
+dodge_amount <- 0.7
+ci_width <- 0.5
+
+panel_a <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_b <- ggplot(b_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_c <- ggplot(c_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_d <- ggplot(d_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+multiplot(panel_a, panel_b, panel_c, panel_d, 
+          layout = matrix(c(1,2,3,4), nrow = 2, byrow = TRUE))
+
+```
+
+Create objects for panels A-D with no legend. Create separate object for legend. Use multiplot to create paneled figure.
+```{r}
+dodge_amount <- 0.7
+ci_width <- 0.5
+
+panel_a <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_b <- ggplot(b_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_c <- ggplot(c_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_d <- ggplot(d_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_point(position = position_dodge(dodge_amount)) +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+legend <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average)) +
+  geom_point() +
+  labs(shape = "Moving Average")
+leg <- ggpubr::get_legend(legend)
+
+multiplot(panel_a, panel_b, panel_c, panel_d, as_ggplot(leg), 
+          layout = matrix(c(1,1,2,2,5,
+                            3,3,4,4,5), nrow = 2, byrow = TRUE))
+
+# jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex3_fix_0.jpeg",
+#      units = "in", width = 10, height = 6, res = 400)
+# multiplot(panel_a, panel_b, panel_c, panel_d, as_ggplot(leg),
+#           layout = matrix(c(1,1,2,2,5,
+#                             3,3,4,4,5), nrow = 2, byrow = TRUE))
+# dev.off()
+
+```
+
+Improve figure by adjusting theme and shape icons.
+```{r}
+dodge_amount <- 0.7
+ci_width <- 0.5
+shape_list <- c(21, 21, 24, 24, 25)
+shape_size <- 1.5
+color_list <- c("black", "white", "black", "white", "black")
+
+
+panel_a <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average, fill = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  geom_point(position = position_dodge(dodge_amount), size = shape_size) +
+  scale_shape_manual(values = shape_list) +
+  scale_fill_manual(values = color_list) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_b <- ggplot(b_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average, fill = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  geom_point(position = position_dodge(dodge_amount), size = shape_size) +
+  scale_shape_manual(values = shape_list) +
+  scale_fill_manual(values = color_list) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_c <- ggplot(c_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average, fill = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  geom_point(position = position_dodge(dodge_amount), size = shape_size) +
+  scale_shape_manual(values = shape_list) +
+  scale_fill_manual(values = color_list) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+panel_d <- ggplot(d_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average, fill = Average)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_errorbar(aes(ymin = Lower, ymax = Upper), position = position_dodge(dodge_amount), width = ci_width) +
+  geom_point(position = position_dodge(dodge_amount), size = shape_size) +
+  scale_shape_manual(values = shape_list) +
+  scale_fill_manual(values = color_list) +
+  theme_classic() +
+  theme(legend.position = "none") +
+  labs(x = "Disease Group",
+       y = "Risk Ratio")
+
+legend <- ggplot(a_df, aes(x = Cause_of_Death, y = RiskRatio, shape = Average, fill = Average)) +
+  geom_point(size = 2) +
+  scale_shape_manual(values = shape_list) +
+  scale_fill_manual(values = color_list) +
+  theme_classic() +
+  theme(shape = "Moving Average")
+leg <- ggpubr::get_legend(legend)
+
+multiplot(panel_a, panel_b, panel_c, panel_d, as_ggplot(leg), 
+          layout = matrix(c(1,1,2,2,5,
+                            3,3,4,4,5), nrow = 2, byrow = TRUE))
+
+# jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex3_fix_1.jpeg",
+#      units = "in", width = 10, height = 6, res = 400)
+# multiplot(panel_a, panel_b, panel_c, panel_d, as_ggplot(leg), 
+#           layout = matrix(c(1,1,2,2,5,
+#                             3,3,4,4,5), nrow = 2, byrow = TRUE))
+# dev.off()
+
+```
+
+
+\newpage
+## Example 4: Facets and Colors
+
+Reference for example: Sidney S, Quesenberry CP Jr, Jaffe MG, Sorel M, Go AS, Rana JS. Heterogeneity in national U.S. mortality trends within heart disease subgroups, 2000-2015. BMC Cardiovasc Disord. 2017 Jul 18;17(1):192. doi: 10.1186/s12872-017-0630-2.
+
+Modifications: 
+* 
+```{r}
+
+```
+
+\newpage
+## Example 5: Map Projection
+
+Reference for example: Sanders NJ, Barreca AI, Neidell MJ. Estimating Causal Effects of Particulate Matter Regulation on Mortality. Epidemiology. 2020 Mar;31(2):160-167. doi: 10.1097/EDE.0000000000001153.
+
+Modifications:
+*
+```{r}
+
+```
+
+\newpage
+## Example 6: Maps Boundaries
+
+Reference for example: Correia AW, Pope CA 3rd, Dockery DW, Wang Y, Ezzati M, Dominici F. Effect of air pollution control on life expectancy in the United States: an analysis of 545 U.S. counties for the period from 2000 to 2007. Epidemiology. 2013 Jan;24(1):23-31. doi: 10.1097/EDE.0b013e3182770237.
+
+Note: The spatial data used in Correia et al. was not publicly available. The data in this example was created based on the figure in Correia et al.
+
+Modifications:
+* Reduced/changed the county boundary outlines
+* Added state boundary lines
+
+Similar US county map with 5 color levels and NA.
+```{r}
+ex5_0 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(color = "#abb2b9") +
+  geom_sf(data = USstates, color = "#abb2b9", fill = NA) +
+  scale_fill_manual(values = brewer.pal(n = 6, name = "Greys")[-1], na.value = "white") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+ex5_0
+
+jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex5_fix_0.jpeg",
+     units = "in", width = 10, height = 6, res = 400)
+ex5_0
+dev.off()
+
+```
+
+Add size difference between state and county lines
+```{r}
+cty_line <- 0.2
+
+ex5_1 <- ggplot(UScounties, aes(fill = Pov_factor_5)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_manual(values = brewer.pal(n = 6, name = "Greys")[-1], na.value = "white") +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "SES level 5 groups")
+ex5_1
+
+jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex5_fix_1.jpeg",
+     units = "in", width = 10, height = 6, res = 400)
+ex5_1
+dev.off()
+
+```
+
+\newpage
+## Example 7: Map Colors and Labels
+
+Reference for example: Liu JC, Wilson A, Mickley LJ, Dominici F, Ebisu K, Wang Y, Sulprizio MP, Peng RD, Yue X, Son JY, Anderson GB, Bell ML. Wildfire-specific Fine Particulate Matter and Risk of Hospital Admissions in Urban and Rural Counties. Epidemiology. 2017 Jan;28(1):77-85. doi: 10.1097/EDE.0000000000000556.
+
+Note: The spatial data used in Liu et al. was not publicly available. The data in this example was created based on the figure in Liu et al.
+
+Modifications: 
+* Removed state labels
+* Created state boundaries
+* Changed the county boundary outlines
+* Added in points for cities
+
+Approximate figure
+```{r}
+cty_line <- 0.2
+
+map_6 <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(crs = st_crs(5070)) +
+  theme_void() +
+  labs(fill = "# of fires")
+map_6
+
+```
+
+Zoom to western states, add buffer to legend margins
+```{r}
+counties <- st_as_sf(map("county", plot = FALSE, fill = TRUE))
+state_nc <- states %>% filter(ID == "north carolina")
+head(state_nc)
+
+states <- st_as_sf(map("state", plot = FALSE, fill = TRUE))
+state_ca <- states %>% filter(ID == "california")
+state_wa <- states %>% filter(ID == "washington")
+state_co <- states %>% filter(ID == "colorado")
+state_tx <- states %>% filter(ID == "texas")
+
+zoom_xmin <- min(st_coordinates(state_wa)[,1]) - 1
+zoom_xmax <- max(st_coordinates(state_co)[,1])
+zoom_ymin <- min(st_coordinates(state_tx)[,2])
+zoom_ymax <- max(st_coordinates(state_wa)[,2])
+
+map_6a <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(xlim = c(zoom_xmin, zoom_xmax), ylim = c(zoom_ymin, zoom_ymax), expand = FALSE) +
+  theme_void() +
+  theme(
+    legend.box.margin = margin(10,10,10,30)
+    ) +
+  labs(fill = "# of fires")
+map_6a
+
+# jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex7_fix_0.jpeg",
+#      units = "in", width = 10, height = 6, res = 400)
+# map_6a
+# dev.off()
+
+```
+
+Add layer with county population, adjust legend position
+
+```{r}
+map_cities <- st_as_sf(us.cities, coords = c("long", "lat"), crs = 4326) %>%
+  filter(pop >= 100000 & !(country.etc %in% c("HI", "AK", "PR")))
+
+map_6b <- ggplot(subset(UScounties, FIRE_YEAR == 2008), aes(fill = fire_sum_total_cat)) +
+  geom_sf(color = "#abb2b9", size = cty_line) +
+  geom_sf(data = USstates, fill = NA) +
+  geom_sf(data = map_cities, aes(fill = NULL), show.legend = FALSE) +
+  scale_fill_brewer(palette = "OrRd", guide = guide_legend(reverse = TRUE)) +
+  coord_sf(xlim = c(zoom_xmin, zoom_xmax), ylim = c(zoom_ymin, zoom_ymax), expand = FALSE) +
+  theme_void() +
+  theme(
+    legend.box.margin = margin(10,10,80,30)
+    ) +
+  labs(fill = "# of fires")
+map_6b
+
+jpeg("C:\\Users\\lwyatt\\Desktop\\Wyatt\\Workshops\\DataViz_ggplot2\\Ex7_fix_1.jpeg",
+     units = "in", width = 10, height = 6, res = 400)
+map_6b
+dev.off()
+
+```
+
+
+
