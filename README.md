@@ -2,9 +2,9 @@
 ### Data Visualization for Environmental Epidemiology with ggplot2: Mastering Presentation-Grade Figures
 
 ## Instructors
-- Alexandra E. Larsen<sup>1</sup>, PhD (alexandra.larsen@duke.edu)
-- Alison K. Krajewski<sup>2</sup>, PhD (krajewski.alison@epa.gov)
-- Lauren H. Wyatt<sup>2</sup>, PhD (wyatt.lauren@epa.gov)
+- Alexandra E. Larsen<sup>1</sup>, PhD (Larsen.Alexandra@epa.gov)
+- Alison K. Krajewski<sup>2</sup>, PhD (Krajewski.Alison@epa.gov)
+- Lauren H. Wyatt<sup>2</sup>, PhD (Wyatt.Lauren@epa.gov)
 
 <sup>1</sup> Department of Biostatistics and Bioinformatics, Duke University School of Medicine, Durham, NC, USA
 
