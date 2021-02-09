@@ -3,12 +3,10 @@
 
 ## Instructors
 - Alexandra E. Larsen<sup>1</sup>, PhD (Larsen.Alexandra@epa.gov)
-- Alison K. Krajewski<sup>2</sup>, PhD (Krajewski.Alison@epa.gov)
-- Lauren H. Wyatt<sup>2</sup>, PhD (Wyatt.Lauren@epa.gov)
+- Alison K. Krajewski<sup>1</sup>, PhD (Krajewski.Alison@epa.gov)
+- Lauren H. Wyatt<sup>1</sup>, PhD (Wyatt.Lauren@epa.gov)
 
-<sup>1</sup> Department of Biostatistics and Bioinformatics, Duke University School of Medicine, Durham, NC, USA
-
-<sup>2</sup> Center for Public Health and Environmental Assessment, United States Environmental Protection Agency (US EPA), Durham, NC, USA
+<sup>1</sup> Center for Public Health and Environmental Assessment, United States Environmental Protection Agency (US EPA), Durham, NC, USA
 
 ## Background & Significance
 Data visualization is critical to conveying new findings in environmental health and is a vital part of advancing the field of environmental epidemiology around the globe. There are a variety of options for creating figures with licensed software, but data visualization packages like ggplot2 in the open-source software, R, are easily accessible and economical alternatives that can produce high quality and journal-ready figures. The syntax of ggplot2 is challenging to learn, so this workshop aims to allow participants to become comfortable with the syntax of ggplot2, create elegant, complex figures, and be able to apply the skills learned to their own research projects. 
